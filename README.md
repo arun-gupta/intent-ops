@@ -1,7 +1,7 @@
 # IntentOps
 
 **The control layer between intent and agent execution.**  
-Turn specs into execution plans with model routing and cost insight.
+Turn GitHub issues into execution plans (Phase 2: structured SDD specs too), with model routing and cost insight.
 
 ---
 
@@ -23,8 +23,11 @@ IntentOps is that missing layer.
 
 ## What it does
 
-Input:
-- Spec-Driven Development (SDD) spec as a **Markdown document** with required sections (see [spec.md](spec.md))
+Input (MVP):
+- **GitHub issue** (reference via `owner/repo#number` or URL; fetched with the GitHub API)
+
+Input (Phase 2):
+- SDD spec as a **Markdown document** with required sections (see [spec.md](spec.md))
 
 Output:
 - structured execution plan  
@@ -42,10 +45,10 @@ Then:
 ## How it works
 
 ```
-SDD → Plan → Route → Estimate → Execute → Evaluate
+Issue → Plan → Route → Estimate → Execute → Evaluate
 ```
 
-- **Plan**: break the spec document into executable steps  
+- **Plan**: break the issue into executable steps (Phase 2: structured SDD document)  
 - **Route**: choose the right model per step  
 - **Estimate**: predict tokens and cost  
 - **Execute**: run via OpenHands  
@@ -55,7 +58,8 @@ SDD → Plan → Route → Estimate → Execute → Evaluate
 
 ## Architecture
 
-- **SDD** → Markdown spec document ([format](spec.md))  
+- **GitHub issue** → MVP input (API-backed)  
+- **SDD spec** → Phase 2 input ([format](spec.md))  
 - **[SWE-bench](https://github.com/princeton-nlp/SWE-bench)** → routing calibration  
 - **[OpenRouter](https://github.com/OpenRouterTeam)** → model layer  
 - **OpenHands** → execution runtime  
@@ -65,29 +69,9 @@ SDD → Plan → Route → Estimate → Execute → Evaluate
 
 ## Example
 
-Given an SDD spec document like:
+Given GitHub issue `acme/app#204` with a title and body describing the bug, IntentOps fetches the issue, normalizes it, and plans the work.
 
-```markdown
-# Goal
-Fix crash when user profile is null.
-
-# Requirements
-- ...
-
-# Constraints
-- ...
-
-# Acceptance Criteria
-- ...
-
-# Non-goals
-- ...
-
-# Context
-- ...
-```
-
-(All sections are required; validation rules and normalized shape are in [spec.md](spec.md).)
+(Phase 2: a structured SDD Markdown document with required sections—see [spec.md](spec.md).)
 
 IntentOps produces:
 
@@ -115,11 +99,14 @@ Each step includes:
 ## Status
 
 MVP:
-- SDD Markdown spec input ([spec.md](spec.md))  
+- GitHub issue input (GitHub API)  
 - execution plan generation  
 - SWE-bench-informed routing  
 - OpenRouter model selection  
 - OpenHands execution  
+
+Phase 2:
+- SDD Markdown spec input ([spec.md](spec.md))  
 
 ---
 

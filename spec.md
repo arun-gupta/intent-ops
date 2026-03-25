@@ -1,11 +1,11 @@
 # IntentOps  
-**The control layer between intent and agent execution. Turn specs into execution plans with model routing and cost insight.**
+**The control layer between intent and agent execution. Turn GitHub issues into execution plans (Phase 2: SDD specs), with model routing and cost insight.**
 
 ---
 
 ## 1. Overview
 
-IntentOps converts a **Spec-Driven Development (SDD) spec** into a **structured execution plan**, then executes it step-by-step using OpenHands.
+IntentOps converts a **GitHub issue** (MVP) into a **structured execution plan**, then executes it step-by-step using OpenHands. **Phase 2** adds a structured **SDD Markdown spec** as an alternate input (see §5).
 
 The system provides:
 - planning  
@@ -22,10 +22,13 @@ OpenHands acts as the **execution runtime**.
 
 ## 2. MVP Architecture
 
-IntentOps MVP is built around five clearly defined layers:
+IntentOps MVP is built around six clearly defined layers:
 
-- **SDD as the only MVP input**  
-  IntentOps accepts a Spec-Driven Development spec as the sole input format.
+- **GitHub issue as the only MVP input**  
+  IntentOps accepts a GitHub issue reference and loads title, body, labels, and repository context via the **GitHub API**.
+
+- **GitHub API as the MVP integration surface**  
+  Authentication via PAT or GitHub App; minimum scopes for issue and repository read access.
 
 - **SWE-bench as the MVP calibration layer**  
   Model routing decisions are informed by SWE-bench-style task characteristics and calibration signals.
@@ -43,7 +46,7 @@ IntentOps MVP is built around five clearly defined layers:
 
 ## 3. Goals
 
-- Transform SDD specs into structured execution plans  
+- Transform GitHub issues into structured execution plans (Phase 2: SDD specs as well)  
 - Recommend models per step  
 - Estimate token usage and cost before execution  
 - Execute steps in a controlled, observable loop  
@@ -54,7 +57,27 @@ IntentOps MVP is built around five clearly defined layers:
 
 ## 4. Inputs (MVP)
 
-### 4.1 SDD Spec (Markdown)
+### 4.1 GitHub Issue
+
+The caller supplies a reference in one of:
+
+- `owner/repo#issue_number` (e.g. `acme/app#204`)  
+- `https://github.com/owner/repo/issues/N`
+
+IntentOps uses the **GitHub API** to fetch the issue: title, body (Markdown), labels, state, `html_url`, and repository metadata (`owner`, `name`, default branch as needed for context).
+
+### Validation Rules (MVP)
+
+- issue resolves successfully via API  
+- issue is **open** (default; configurable later)  
+- **title** is non-empty  
+- reject invalid references with structured errors  
+
+---
+
+## 5. Inputs (Phase 2)
+
+### 5.1 SDD Spec (Markdown)
 
 All sections are required.
 
@@ -78,9 +101,7 @@ All sections are required.
 - ...
 ```
 
----
-
-### Validation Rules
+### Validation Rules (Phase 2 / SDD)
 
 - all sections must exist  
 - each section must contain content  
@@ -88,7 +109,28 @@ All sections are required.
 
 ---
 
-## 5. Internal Normalized Schema
+## 6. Internal Normalized Schema
+
+### 6.1 GitHub issue (MVP)
+
+```json
+{
+  "source_type": "github_issue",
+  "repo": "owner/name",
+  "issue_number": 0,
+  "title": "string",
+  "body": "string",
+  "labels": ["string"],
+  "state": "open | closed",
+  "html_url": "string",
+  "signals": {
+    "priority": "low | medium | high",
+    "area": "frontend | backend | infra | unknown"
+  }
+}
+```
+
+### 6.2 SDD spec (Phase 2)
 
 ```json
 {
@@ -109,9 +151,9 @@ All sections are required.
 
 ---
 
-## 6. Output
+## 7. Output
 
-### 6.1 JSON Execution Plan
+### 7.1 JSON Execution Plan
 
 ```json
 {
@@ -148,7 +190,7 @@ All sections are required.
 
 ---
 
-### 6.2 Markdown Summary
+### 7.2 Markdown Summary
 
 Includes:
 - plan summary  
@@ -160,53 +202,55 @@ Includes:
 
 ---
 
-## 7. System Flow
+## 8. System Flow
 
 ```text
-Input → Validate → Normalize → Plan → Classify → Route → Estimate → Score → Execute → Report
+GitHub issue (MVP) or SDD spec (Phase 2) → Validate → Normalize → Plan → Classify → Route → Estimate → Score → Execute → Report
 ```
 
 ---
 
-## 8. Core Components
+## 9. Core Components
 
-### 8.1 Input Parser
-- parse SDD markdown  
+### 9.1 Input ingest
+- **MVP:** resolve GitHub issue reference; fetch via GitHub API; map to §6.1  
+- **Phase 2:** parse SDD Markdown per §5; map to §6.2  
 
-### 8.2 Validator
-- enforce required sections  
+### 9.2 Validator
+- **MVP:** enforce §4 rules  
+- **Phase 2:** enforce §5 SDD rules  
 
-### 8.3 Normalizer
+### 9.3 Normalizer
 - convert into schema  
 
-### 8.4 Planner
+### 9.4 Planner
 - generate steps  
 - define dependencies  
 
-### 8.5 Classifier
+### 9.5 Classifier
 - assign step type and complexity  
 
-### 8.6 Router
+### 9.6 Router
 - select model per step  
 - provide rationale  
 
-### 8.7 Estimator
+### 9.7 Estimator
 - estimate tokens  
 
-### 8.8 Cost Calculator
+### 9.8 Cost Calculator
 - estimate cost  
 
-### 8.9 Scorer
+### 9.9 Scorer
 - confidence  
 - risk  
 - readiness score  
 
-### 8.10 Reporter
+### 9.10 Reporter
 - JSON + Markdown output  
 
 ---
 
-## 9. Model Access Layer
+## 10. Model Access Layer
 
 ### MVP
 
@@ -224,7 +268,7 @@ Input → Validate → Normalize → Plan → Classify → Route → Estimate �
 
 ---
 
-## 10. SWE-bench-Informed Routing (MVP)
+## 11. SWE-bench-Informed Routing (MVP)
 
 SWE-bench is used as the **primary calibration signal**.
 
@@ -238,13 +282,13 @@ SWE-bench is used as the **primary calibration signal**.
 
 ---
 
-## 11. Execution Layer (MVP)
+## 12. Execution Layer (MVP)
 
 IntentOps integrates with OpenHands.
 
 ---
 
-### 11.1 Execution Model
+### 12.1 Execution Model
 
 ```text
 Plan → Step → Contract → OpenHands → Result → Evaluate → Next Step
@@ -252,7 +296,7 @@ Plan → Step → Contract → OpenHands → Result → Evaluate → Next Step
 
 ---
 
-### 11.2 Execution Contract
+### 12.2 Execution Contract
 
 ```json
 {
@@ -277,7 +321,7 @@ Plan → Step → Contract → OpenHands → Result → Evaluate → Next Step
 
 ---
 
-### 11.3 OpenHands Adapter
+### 12.3 OpenHands Adapter
 
 - converts step → executable task  
 - injects context and constraints  
@@ -286,7 +330,7 @@ Plan → Step → Contract → OpenHands → Result → Evaluate → Next Step
 
 ---
 
-### 11.4 Execution Rules
+### 12.4 Execution Rules
 
 - execute steps sequentially  
 - respect dependencies  
@@ -294,7 +338,7 @@ Plan → Step → Contract → OpenHands → Result → Evaluate → Next Step
 
 ---
 
-### 11.5 Feedback Loop
+### 12.5 Feedback Loop
 
 After each step:
 - evaluate success  
@@ -303,7 +347,7 @@ After each step:
 
 ---
 
-### 11.6 Observability
+### 12.6 Observability
 
 ```json
 {
@@ -318,7 +362,7 @@ After each step:
 
 ---
 
-### 11.7 Plan vs Execution Tracking
+### 12.7 Plan vs Execution Tracking
 
 Track:
 - estimated vs actual tokens  
@@ -327,9 +371,14 @@ Track:
 
 ---
 
-## 12. CLI Interface
+## 13. CLI Interface
 
 ```bash
+# MVP
+intentops plan --issue owner/repo#42
+intentops run --issue owner/repo#42
+
+# Phase 2
 intentops plan --input spec.md
 intentops run --input spec.md
 ```
@@ -341,29 +390,29 @@ Outputs:
 
 ---
 
-## 13. Tech Stack
+## 14. Tech Stack
 
 - Python 3.11+  
 - Pydantic  
 - Typer  
+- GitHub REST API (e.g. PyGithub or `httpx` with OAuth/PAT)  
 - OpenRouter  
 - OpenHands  
 
 ---
 
-## 14. Phase 2
+## 15. Phase 2
 
-- GitHub issue input  
-- GitHub API integration  
-- repo-aware context estimation  
-- live pricing  
-- adaptive routing  
-- additional execution runtimes (SWE-agent, Codex CLI)  
-- calibration beyond SWE-bench  
+- **SDD Markdown spec input** as a first-class path (see §5) alongside GitHub issues  
+- richer **repo-aware** context estimation (beyond defaults implied by the issue’s repository)  
+- **live** pricing for cost estimates  
+- **adaptive** routing from execution feedback  
+- additional **execution runtimes** (e.g. SWE-agent, Codex CLI)  
+- **calibration** beyond SWE-bench  
 
 ---
 
-## 15. Success Criteria
+## 16. Success Criteria
 
 - plans are structured and actionable  
 - routing is explainable  
@@ -373,11 +422,11 @@ Outputs:
 
 ---
 
-## 16. Core Principle
+## 17. Core Principle
 
 IntentOps separates planning from execution:
 
-- SDD defines intent  
+- **MVP:** the GitHub issue defines intent; **Phase 2:** a structured SDD spec may define intent as an alternative input (§5)  
 - SWE-bench informs routing  
 - OpenRouter provides model choice  
 - OpenHands executes the work  
